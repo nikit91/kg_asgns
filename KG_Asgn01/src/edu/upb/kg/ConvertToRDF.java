@@ -18,10 +18,30 @@ public class ConvertToRDF {
 	public static final String MAIN_URI_TMPL = "<http://dbpedia.org/ontology/${propName}#${value}>";
 	public static final String DATA_TMPL = "ex:${propName} \"${value}\" ";
 
-	public static void main(String[] args) throws IOException {
-		Path path = Paths.get(args[0]);
-		List<String> entryList = new ArrayList<String>();
-		Files.lines(path).forEachOrdered(s -> entryList.add(s));
+	public static void main(String[] args) {
+		try {
+			// verify the input
+			if (args.length != 2) {
+				System.out.println("Invalid input count! 2 inputs required.");
+				return;
+			}
+			Path path = Paths.get(args[0]);
+			List<String> entryList = new ArrayList<String>();
+			Files.lines(path).forEachOrdered(s -> entryList.add(s));
+			ConvertToRDF obj = new ConvertToRDF();
+			obj.processToRDF(entryList, args[1]);
+		} catch (IOException exception) {
+			System.out.println("Error locating files.");
+		}
+	}
+	/**
+	 * Method to process the TSV entry into RDF (ttl)
+	 * @param entryList list of lines of TSV file
+	 * @param outputFilePath output file path
+	 * @throws IOException
+	 */
+	public void processToRDF(List<String> entryList, String outputFilePath) throws IOException {
+
 		String[] predicates = entryList.get(0).split("\\t");
 		int predLen = predicates.length;
 		// Generate main URI template
@@ -47,20 +67,39 @@ public class ConvertToRDF {
 					outputList.add(getPropStr(predicates[j], curEntries[j], j == predLen - 1));
 			}
 		}
-		
-		for(String x: outputList) {
-			System.out.println(x);
-		}
-	}
 
-	public static String getPropStr(String propName, String value, boolean isLast) {
+		writeOutputFile(outputList, outputFilePath);
+	}
+	/**
+	 * Method to generate the part of RDF triple based on a template
+	 * @param propName name of predicate
+	 * @param value value of predicate
+	 * @param isLast if property is last property for current entity
+	 * @return partially generated triple.
+	 */
+	public String getPropStr(String propName, String value, boolean isLast) {
 		String propStr = null;
 		Map<String, String> valuesMap = new HashMap<String, String>();
 		valuesMap.put("propName", propName);
 		valuesMap.put("value", value);
 		StrSubstitutor sub = new StrSubstitutor(valuesMap);
 		propStr = sub.replace(DATA_TMPL);
-		return "\t"+propStr+(isLast?" .":" ;");
+		return "\t" + propStr + (isLast ? " ." : " ;");
+	}
+
+	/**
+	 * Method to write the list to an output file
+	 * 
+	 * @param resList
+	 *            list to written
+	 * @param outputFile
+	 *            path to the output file
+	 * @throws IOException
+	 */
+	public void writeOutputFile(List<String> resList, String outputFile) throws IOException {
+		Path path = Paths.get(outputFile);
+		Files.write(path, resList);
+		System.out.println("output successfully written to: " + path.toAbsolutePath());
 	}
 
 }
